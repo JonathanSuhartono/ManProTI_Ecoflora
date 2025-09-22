@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flora & Fauna Indonesia</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --secondary-color: #4caf50;
+            --accent-color: #81c784;
+            --text-dark: #1b5e20;
+            --text-light: #f1f8e9;
+            --background-light: #e8f5e9;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background-light);
+            color: #333;
+        }
+        
+        header {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo h1 {
+            font-size: 1.8rem;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+        }
+        
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        
+        nav a:hover, nav a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .section-title {
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent-color);
+        }
+        
+        /* Peta Interaktif */
+        #map-section {
+            margin-bottom: 40px;
+        }
+        
+        #map-container {
+            height: 500px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .map-info {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Filter dan Pencarian */
+        #search-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .filter-container {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .filter-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: white;
+        }
+        
+        /* Grid Spesies */
+        #species-section {
+            margin-bottom: 40px;
+        }
+        
+        .species-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+        
+        .species-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .species-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        
+        .species-image {
+            height: 200px;
+            width: 100%;
+            object-fit: cover;
+        }
+        
+        .species-info {
+            padding: 15px;
+        }
+        
+        .species-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--text-dark);
+            margin-bottom: 5px;
+        }
+        
+        .species-scientific {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .species-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status-endangered {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+        
+        .status-vulnerable {
+            background: #ffe0b2;
+            color: #ef6c00;
+        }
+        
+        .status-least-concern {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+        
+        /* Kuis Section */
+        #quiz-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+        
+        .quiz-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .quiz-question {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        
+        .quiz-options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .quiz-option {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .quiz-option:hover {
+            background: #f5f5f5;
+        }
+        
+        .quiz-option.selected {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .quiz-controls {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .quiz-btn {
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .quiz-btn:hover {
+            background: var(--secondary-color);
+        }
+        
+        .quiz-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .quiz-result {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        /* Modal Detail Spesies */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            padding: 20px;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .species-detail {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        
+        .detail-image {
+            width: 100%;
+            border-radius: 10px;
+        }
+        
+        .detail-info h3 {
+            margin-bottom: 10px;
+            color: var(--text-dark);
+        }
+        
+        .detail-info p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        footer {
+            background: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        }
+        
+        /* Responsif */
+        @media (max-width: 768px) {
+            .species-detail {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-container, .filter-container {
+                flex-direction: column;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            nav ul {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <span class="logo-icon">🌿</span>
+            <h1>Flora & Fauna Indonesia</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#map-section" class="active">Peta Interaktif</a></li>
+                <li><a href="#species-section">Daftar Spesies</a></li>
+                <li><a href="#quiz-section">Kuis Edukasi</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="container">
+        
+
+    <footer>
+        <p>&copy; 2023 Flora & Fauna Indonesia. Semua hak cipta dilindungi.</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Data flora dan fauna Indonesia
+        const speciesData = [
+            {
+                id: 1,
+                name: "Orangutan Sumatera",
+                scientificName: "Pongo abelii",
+                category: "fauna",
+                description: "Orangutan Sumatera adalah spesies orangutan yang ditemukan di pulau Sumatera, Indonesia. Mereka adalah kera besar dengan rambut panjang berwarna coklat kemerahan.",
+                conservationStatus: "endangered",
+                habitat: "Hutan hujan tropis Sumatera",
+                province: "Sumatera Utara",
+                image: "https://source.unsplash.com/800x600/?orangutan",
+                location: { lat: 3.5952, lng: 98.6722 }
+            },
+            {
+                id: 2,
+                name: "Rafflesia Arnoldii",
+                scientificName: "Rafflesia arnoldii",
+                category: "flora",
+                description: "Rafflesia arnoldii adalah bunga terbesar di dunia. Bunga ini dikenal dengan bau busuknya yang menarik lalat untuk membantu penyerbukan.",
+                conservationStatus: "vulnerable",
+                habitat: "Hutan hujan tropis Sumatera dan Kalimantan",
+                province: "Bengkulu",
+                image: "https://source.unsplash.com/800x600/?rafflesia",
+                location: { lat: -3.7956, lng: 102.2592 }
+            },
+            {
+                id: 3,
+                name: "Badak Jawa",
+                scientificName: "Rhinoceros sondaicus",
+                category: "fauna",
+                description: "Badak Jawa adalah salah satu mamalia paling langka di dunia. Hanya tersisa sekitar 70 individu yang hidup di Taman Nasional Ujung Kulon.",
+                conservationStatus: "endangered",
+                habitat: "Hutan hujan dataran rendah",
+                province: "Banten",
+                image: "https://source.unsplash.com/800x600/?rhinoceros",
+                location: { lat: -6.7825, lng: 105.3706 }
+            },
+            {
+                id: 4,
+                name: "Anggrek Bulan",
+                scientificName: "Phalaenopsis amabilis",
+                category: "flora",
+                description: "Anggrek Bulan adalah bunga nasional Indonesia. Bunga ini dikenal dengan keindahan dan keanggunannya.",
+                conservationStatus: "least-concern",
+                habitat: "Hutan hujan tropis",
+                province: "Jawa Barat",
+                image: "https://source.unsplash.com/800x600/?phalaenopsis",
+                location: { lat: -6.9175, lng: 107.6191 }
+            },
+            {
+                id: 5,
+                name: "Komodo",
+                scientificName: "Varanus komodoensis",
+                category: "fauna",
+                description: "Komodo adalah kadal terbesar di dunia yang hanya ditemukan di beberapa pulau di Indonesia, terutama Pulau Komodo.",
+                conservationStatus: "vulnerable",
+                habitat: "Savana dan hutan tropis",
+                province: "Nusa Tenggara Timur",
+                image: "https://source.unsplash.com/800x600/?komodo",
+                location: { lat: -8.5898, lng: 119.4418 }
+            },
+            {
+                id: 6,
+                name: "Kantong Semar",
+                scientificName: "Nepenthes",
+                category: "flora",
+                description: "Kantong Semar adalah tanaman karnivora yang memiliki kantong untuk menjebak serangga. Terdapat banyak spesies yang tersebar di Indonesia.",
+                conservationStatus: "vulnerable",
+                habitat: "Hutan hujan tropis",
+                province: "Kalimantan Barat",
+                image: "https://source.unsplash.com/800x600/?pitcher-plant",
+                location: { lat: -0.2788, lng: 111.4753 }
+            }
+        ];
+
+        // Data kuis
+        const quizData = [
+            {
+                question: "Bunga terbesar di dunia yang ditemukan di Indonesia adalah?",
+                options: ["Rafflesia Arnoldii", "Anggrek Bulan", "Kantong Semar", "Bunga Bangkai"],
+                correctAnswer: 0
+            },
+            {
+                question: "Hewan endemik Indonesia yang merupakan kadal terbesar di dunia adalah?",
+                options: ["Komodo", "Biawak", "Buaya", "Ular Sanca"],
+                correctAnswer: 0
+            },
+            {
+                question: "Spesies orangutan yang hanya ditemukan di pulau Sumatera adalah?",
+                options: ["Orangutan Sumatera", "Orangutan Kalimantan", "Orangutan Tapanuli", "Orangutan Jawa"],
+                correctAnswer: 0
+            },
+            {
+                question: "Bunga nasional Indonesia adalah?",
+                options: ["Anggrek Bulan", "Melati", "Rafflesia", "Kantong Semar"],
+                correctAnswer: 0
+            }
+        ];
+
+        // Inisialisasi peta
+        let map;
+        let markers = [];
+
+        function initMap() {
+            // Posisi tengah Indonesia
+            map = L.map('map').setView([-2.5489, 118.0149], 5);
+            
+            // Tambahkan tile layer (peta dasar)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Tambahkan marker untuk setiap spesies
+            speciesData.forEach(species => {
+                const marker = L.marker(species.location).addTo(map)
+                    .bindPopup(`
+                        <div class="map-info">
+                            <h3>${species.name}</h3>
+                            <p><em>${species.scientificName}</em></p>
+                            <p>Status: ${getStatusText(species.conservationStatus)}</p>
+                            <button onclick="showSpeciesDetail(${species.id})">Lihat Detail</button>
+                        </div>
+                    `);
+                markers.push(marker);
+            });
+        }
+
+        // Fungsi untuk mendapatkan teks status konservasi
+        function getStatusText(status) {
+            switch(status) {
+                case 'endangered': return 'Terancam Punah';
+                case 'vulnerable': return 'Rentan';
+                case 'least-concern': return 'Berisiko Rendah';
+                default: return 'Tidak Diketahui';
+            }
+        }
+
+        // Fungsi untuk mendapatkan kelas CSS status konservasi
+        function getStatusClass(status) {
+            switch(status) {
+                case 'endangered': return 'status-endangered';
+                case 'vulnerable': return 'status-vulnerable';
+                case 'least-concern': return 'status-least-concern';
+                default: return '';
+            }
+        }
+
+        // Fungsi untuk menampilkan detail spesies di modal
+        function showSpeciesDetail(id) {
+            const species = speciesData.find(s => s.id === id);
+            if (!species) return;
+            
+            document.getElementById('modal-title').textContent = species.name;
+            document.getElementById('modal-body').innerHTML = `
+                <div class="species-detail">
+                    <div>
+                        <img src="${species.image}" alt="${species.name}" class="detail-image">
+                    </div>
+                    <div class="detail-info">
+                        <h3>Informasi Spesies</h3>
+                        <p><strong>Nama Ilmiah:</strong> ${species.scientificName}</p>
+                        <p><strong>Kategori:</strong> ${species.category === 'flora' ? 'Flora' : 'Fauna'}</p>
+                        <p><strong>Status Konservasi:</strong> <span class="species-status ${getStatusClass(species.conservationStatus)}">${getStatusText(species.conservationStatus)}</span></p>
+                        <p><strong>Habitat:</strong> ${species.habitat}</p>
+                        <p><strong>Provinsi:</strong> ${species.province}</p>
+                        <p><strong>Deskripsi:</strong> ${species.description}</p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('species-modal').style.display = 'block';
+        }
+
+        // Fungsi untuk menutup modal
+        function closeModal() {
+            document.getElementById('species-modal').style.display = 'none';
+        }
+
+        // Fungsi untuk merender kartu spesies
+        function renderSpeciesCards(speciesList = speciesData) {
+            const grid = document.getElementById('species-grid');
+            grid.innerHTML = '';
+            
+            speciesList.forEach(species => {
+                const card = document.createElement('div');
+                card.className = 'species-card';
+                card.innerHTML = `
+                    <img src="${species.image}" alt="${species.name}" class="species-image">
+                    <div class="species-info">
+                        <div class="species-name">${species.name}</div>
+                        <div class="species-scientific">${species.scientificName}</div>
+                        <span class="species-status ${getStatusClass(species.conservationStatus)}">${getStatusText(species.conservationStatus)}</span>
+                        <p><strong>Lokasi:</strong> ${species.province}</p>
+                        <button onclick="showSpeciesDetail(${species.id})" style="margin-top: 10px; padding: 8px 15px; background: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer;">Lihat Detail</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Fungsi untuk memfilter spesies
+        function filterSpecies() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const categoryFilter = document.getElementById('category-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            const provinceFilter = document.getElementById('province-filter').value;
+            
+            const filteredSpecies = speciesData.filter(species => {
+                const matchesSearch = species.name.toLowerCase().includes(searchTerm) || 
+                                    species.scientificName.toLowerCase().includes(searchTerm) ||
+                                    species.province.toLowerCase().includes(searchTerm);
+                const matchesCategory = !categoryFilter || species.category === categoryFilter;
+                const matchesStatus = !statusFilter || species.conservationStatus === statusFilter;
+                const matchesProvince = !provinceFilter || species.province === provinceFilter;
+                
+                return matchesSearch && matchesCategory && matchesStatus && matchesProvince;
+            });
+            
+            renderSpeciesCards(filteredSpecies);
+            
+            // Update marker di peta
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            
+            filteredSpecies.forEach(species => {
+                const marker = L.marker(species.location).addTo(map)
+                    .bindPopup(`
+                        <div class="map-info">
+                            <h3>${species.name}</h3>
+                            <p><em>${species.scientificName}</em></p>
+                            <p>Status: ${getStatusText(species.conservationStatus)}</p>
+                            <button onclick="showSpeciesDetail(${species.id})">Lihat Detail</button>
+                        </div>
+                    `);
+                markers.push(marker);
+            });
+        }
+
+        // Fungsi untuk mengisi opsi provinsi di filter
+        function populateProvinceFilter() {
+            const provinces = [...new Set(speciesData.map(species => species.province))];
+            const provinceFilter = document.getElementById('province-filter');
+            
+            provinces.forEach(province => {
+                const option = document.createElement('option');
+                option.value = province;
+                option.textContent = province;
+                provinceFilter.appendChild(option);
+            });
+        }
+
+        // Fungsi untuk mengelola kuis
+        let currentQuestion = 0;
+        let userAnswers = [];
+        
+        function initQuiz() {
+            showQuestion(currentQuestion);
+            
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                if (currentQuestion > 0) {
+                    currentQuestion--;
+                    showQuestion(currentQuestion);
+                }
+            });
+            
+            document.getElementById('next-btn').addEventListener('click', () => {
+                if (currentQuestion < quizData.length - 1) {
+                    currentQuestion++;
+                    showQuestion(currentQuestion);
+                } else {
+                    showQuizResult();
+                }
+            });
+        }
+        
+        function showQuestion(index) {
+            const question = quizData[index];
+            document.getElementById('quiz-question').textContent = question.question;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, i) => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'quiz-option';
+                if (userAnswers[index] === i) {
+                    optionElement.classList.add('selected');
+                }
+                optionElement.textContent = option;
+                optionElement.addEventListener('click', () => {
+                    // Hapus seleksi dari opsi lain
+                    document.querySelectorAll('.quiz-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    // Tandai opsi yang dipilih
+                    optionElement.classList.add('selected');
+                    userAnswers[index] = i;
+                });
+                optionsContainer.appendChild(optionElement);
+            });
+            
+            // Update tombol navigasi
+            document.getElementById('prev-btn').disabled = index === 0;
+            document.getElementById('next-btn').textContent = index === quizData.length - 1 ? 'Lihat Hasil' : 'Selanjutnya';
+        }
+        
+        function showQuizResult() {
+            let score = 0;
+            quizData.forEach((question, index) => {
+                if (userAnswers[index] === question.correctAnswer) {
+                    score++;
+                }
+            });
+            
+            const percentage = (score / quizData.length) * 100;
+            let message = '';
+            
+            if (percentage >= 80) {
+                message = `Luar biasa! Anda mendapatkan ${score} dari ${quizData.length} pertanyaan benar.`;
+            } else if (percentage >= 60) {
+                message = `Bagus! Anda mendapatkan ${score} dari ${quizData.length} pertanyaan benar.`;
+            } else {
+                message = `Anda mendapatkan ${score} dari ${quizData.length} pertanyaan benar. Terus belajar!`;
+            }
+            
+            document.getElementById('quiz-result').textContent = message;
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('prev-btn').style.display = 'none';
+        }
+
+        // Inisialisasi saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            renderSpeciesCards();
+            populateProvinceFilter();
+            initQuiz();
+            
+            // Event listener untuk filter
+            document.getElementById('search-input').addEventListener('input', filterSpecies);
+            document.getElementById('category-filter').addEventListener('change', filterSpecies);
+            document.getElementById('status-filter').addEventListener('change', filterSpecies);
+            document.getElementById('province-filter').addEventListener('change', filterSpecies);
+            
+            // Event listener untuk modal
+            document.getElementById('modal-close').addEventListener('click', closeModal);
+            window.addEventListener('click', function(event) {
+                if (event.target === document.getElementById('species-modal')) {
+                    closeModal();
+                }
+            });
+            
+            // Smooth scroll untuk navigasi
+            document.querySelectorAll('nav a').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Hapus kelas active dari semua link
+                    document.querySelectorAll('nav a').forEach(link => {
+                        link.classList.remove('active');
+                    });
+                    
+                    // Tambahkan kelas active ke link yang diklik
+                    this.classList.add('active');
+                    
+                    const targetId = this.getAttribute('href');
+                    document.querySelector(targetId).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
