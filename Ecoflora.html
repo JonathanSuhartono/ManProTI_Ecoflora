@@ -217,6 +217,25 @@
             background: #fff9c4;
             color: #f57f17;
         }
+        .status-critically-endangered {
+            background: #ffcccb;
+            color: #b71c1c;
+        }
+
+        .status-extinct-wild {
+            background: #d7ccc8;
+            color: #4e342e;
+        }
+
+        .status-data-deficient {
+            background: #eceff1;
+            color: #455a64;
+        }
+
+        .status-not-evaluated {
+            background: #f5f5f5;
+            color: #616161;
+        }
         
         /* Legend */
         .map-legend {
@@ -301,6 +320,60 @@
                 justify-content: center;
             }
         }
+
+        /* Styles for species list section */
+        .species-list-section {
+            padding: 30px 0;
+            background: #fafafa;
+            border-top: 1px solid #eee;
+            display: none;
+        }
+
+        .species-list-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .species-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .species-card .species-image {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            background: #eee;
+        }
+
+        .species-card .species-info {
+            padding: 10px 12px;
+        }
+
+        .species-card .species-name {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .species-card .species-scientific {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        /* Tab styles */
+        .tabs { display:flex; gap:8px; margin-bottom:12px; }
+        .tab-btn { padding:8px 12px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer }
+        .tab-btn.active { background: var(--primary-color); color: white; border-color: transparent }
+
+        /* Marker highlight when focusing from list */
+        .marker-highlight { transform: scale(1.2); box-shadow: 0 8px 18px rgba(0,0,0,0.35); transition: transform 0.18s ease; }
     </style>
 </head>
 <body>
@@ -321,6 +394,10 @@
     <div class="container">
         <section id="map-section">
             <h2 class="section-title">Peta Persebaran Flora & Fauna</h2>
+            <div class="tabs" role="tablist" aria-label="Tampilan">
+                <button class="tab-btn active" data-target="#map-section" role="tab" aria-selected="true">Peta</button>
+                <button class="tab-btn" data-target="#species-section" role="tab" aria-selected="false">Daftar Spesies</button>
+            </div>
         
         <!-- Map Controls -->
         <div class="map-controls">
@@ -337,10 +414,14 @@
                     <label for="statusFilter">Status Konservasi</label>
                     <select id="statusFilter">
                         <option value="all">Semua Status</option>
-                        <option value="endangered">Terancam Punah</option>
-                        <option value="vulnerable">Rentan</option>
-                        <option value="near-threatened">Hampir Terancam</option>
-                        <option value="least-concern">Berisiko Rendah</option>
+                        <option value="critically-endangered">Kritis (CR)</option>
+                        <option value="endangered">Terancam Punah (EN)</option>
+                        <option value="vulnerable">Rentan (VU)</option>
+                        <option value="near-threatened">Hampir Terancam (NT)</option>
+                        <option value="least-concern">Berisiko Rendah (LC)</option>
+                        <option value="extinct-wild">Punah di Alam Liar (EW)</option>
+                        <option value="data-deficient">Informasi Kurang (DD)</option>
+                        <option value="not-evaluated">Belum Dievaluasi / Lainnya (NE)</option>
                     </select>
                 </div>
                 <div class="control-group">
@@ -393,6 +474,26 @@
                 <div class="legend-icon" style="background: #388e3c;"></div>
                 <span>Berisiko Rendah (Least-Concern)</span>
             </div>
+
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #b71c1c;"></div>
+                <span>Kritis (Critically Endangered - CR)</span>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #6d4c41;"></div>
+                <span>Punah di Alam Liar (Extinct in Wild - EW)</span>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #607d8b;"></div>
+                <span>Informasi Kurang (Data Deficient - DD)</span>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-icon" style="background: #9e9e9e;"></div>
+                <span>Belum Dievaluasi / Lainnya (NE)</span>
+            </div>
         </div>
         
         <!-- Statistics -->
@@ -417,156 +518,193 @@
         </section>
     </div>
 
+    <!-- Species list section -->
+    <section id="species-section" class="species-list-section">
+        <div class="container">
+            <h2 class="section-title">Daftar Spesies</h2>
+            <p>Daftar lengkap flora & fauna. Gunakan filter pada Peta untuk mempersempit daftar.</p>
+            <div id="species-list" class="species-list-grid" aria-live="polite"></div>
+        </div>
+    </section>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
-        // Data spesies flora dan fauna Indonesia (data dummy yang lebih lengkap)
-        const speciesData = [
-            {
-                id: 1,
-                name: "Orangutan Sumatera",
-                scientificName: "Pongo abelii",
-                category: "fauna",
-                description: "Orangutan Sumatera adalah kera besar endemik Sumatera dengan bulu coklat kemerahan panjang. Mereka hidup di kanopi hutan hujan dan memiliki perilaku semi-soliter.",
-                conservationStatus: "endangered",
-                habitat: "Hutan hujan tropis dataran rendah dan pegunungan",
-                province: "Sumatera Utara",
-                image: "https://images.unsplash.com/photo-1540573133985-87b6da6d54a9?w=400",
-                location: { lat: 3.5952, lng: 98.6722 }
-            },
-            {
-                id: 2,
-                name: "Rafflesia Arnoldii",
-                scientificName: "Rafflesia arnoldii",
-                category: "flora",
-                description: "Bunga terbesar di dunia dengan diameter mencapai 1 meter. Bunga parasit ini mengeluarkan bau busuk untuk menarik serangga penyerbuk.",
-                conservationStatus: "vulnerable",
-                habitat: "Hutan hujan tropis Sumatera dan Kalimantan",
-                province: "Bengkulu",
-                image: "https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=400",
-                location: { lat: -3.7956, lng: 102.2592 }
-            },
-            {
-                id: 3,
-                name: "Badak Jawa",
-                scientificName: "Rhinoceros sondaicus",
-                category: "fauna",
-                description: "Salah satu mamalia paling langka di dunia. Hanya tersisa sekitar 70 individu di Taman Nasional Ujung Kulon.",
-                conservationStatus: "endangered",
-                habitat: "Hutan hujan dataran rendah",
-                province: "Banten",
-                image: "https://images.unsplash.com/photo-1551069613-1904dbdcda11?w=400",
-                location: { lat: -6.7825, lng: 105.3706 }
-            },
-            {
-                id: 4,
-                name: "Anggrek Bulan",
-                scientificName: "Phalaenopsis amabilis",
-                category: "flora",
-                description: "Puspa bangsa Indonesia dengan bunga putih elegan. Anggrek epifit ini tumbuh menempel pada batang pohon.",
-                conservationStatus: "least-concern",
-                habitat: "Hutan hujan tropis",
-                province: "Jawa Barat",
-                image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400",
-                location: { lat: -6.9175, lng: 107.6191 }
-            },
-            {
-                id: 5,
-                name: "Komodo",
-                scientificName: "Varanus komodoensis",
-                category: "fauna",
-                description: "Kadal terbesar di dunia yang hanya ditemukan di Indonesia. Predator puncak dengan gigitan beracun.",
-                conservationStatus: "vulnerable",
-                habitat: "Savana dan hutan tropis",
-                province: "Nusa Tenggara Timur",
-                image: "https://images.unsplash.com/photo-1564760290292-23341e4df6ec?w=400",
-                location: { lat: -8.5898, lng: 119.4418 }
-            },
-            {
-                id: 6,
-                name: "Kantong Semar",
-                scientificName: "Nepenthes",
-                category: "flora",
-                description: "Tanaman karnivora dengan kantong perangkap serangga. Indonesia memiliki lebih dari 60 spesies Nepenthes.",
-                conservationStatus: "vulnerable",
-                habitat: "Hutan hujan tropis dan pegunungan",
-                province: "Kalimantan Barat",
-                image: "https://images.unsplash.com/photo-1593199346169-53f3396e51d5?w=400",
-                location: { lat: -0.2788, lng: 111.4753 }
-            },
-            {
-                id: 7,
-                name: "Jalak Bali",
-                scientificName: "Leucopsar rothschildi",
-                category: "fauna",
-                description: "Burung endemik Bali dengan bulu putih dan topeng biru di sekitar mata. Status kritikal karena perburuan liar.",
-                conservationStatus: "endangered",
-                habitat: "Hutan savana dan hutan mangrove",
-                province: "Bali",
-                image: "https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=400",
-                location: { lat: -8.3405, lng: 115.0920 }
-            },
-            {
-                id: 8,
-                name: "Bunga Bangkai",
-                scientificName: "Amorphophallus titanum",
-                category: "flora",
-                description: "Bunga tertinggi di dunia yang dapat mencapai tinggi 3 meter. Mekar sangat jarang, hanya beberapa hari.",
-                conservationStatus: "vulnerable",
-                habitat: "Hutan hujan tropis Sumatera",
-                province: "Sumatera Barat",
-                image: "https://images.unsplash.com/photo-1516253593875-bd7ba052fbc5?w=400",
-                location: { lat: -0.9471, lng: 100.4172 }
-            },
-            {
-                id: 9,
-                name: "Harimau Sumatera",
-                scientificName: "Panthera tigris sumatrae",
-                category: "fauna",
-                description: "Subspesies harimau terkecil yang hanya ada di Sumatera. Populasinya terus menurun akibat hilangnya habitat.",
-                conservationStatus: "endangered",
-                habitat: "Hutan hujan tropis",
-                province: "Sumatera Selatan",
-                image: "https://images.unsplash.com/photo-1563206767-5b18f218e8de?w=400",
-                location: { lat: -2.9761, lng: 104.7754 }
-            },
-            {
-                id: 10,
-                name: "Cendrawasih",
-                scientificName: "Paradisaea apoda",
-                category: "fauna",
-                description: "Burung surga dengan bulu yang sangat indah. Endemik Papua dan menjadi simbol keindahan alam Indonesia.",
-                conservationStatus: "least-concern",
-                habitat: "Hutan hujan dataran rendah dan pegunungan",
-                province: "Papua",
-                image: "https://images.unsplash.com/photo-1444464666168-49d633b86797?w=400",
-                location: { lat: -4.2699, lng: 138.0804 }
-            },
-            {
-                id: 11,
-                name: "Edelweiss Jawa",
-                scientificName: "Anaphalis javanica",
-                category: "flora",
-                description: "Bunga abadi yang tumbuh di pegunungan tinggi Jawa. Simbol cinta abadi dalam budaya Indonesia.",
-                conservationStatus: "near-threatened",
-                habitat: "Pegunungan tinggi 2000-3000 mdpl",
-                province: "Jawa Tengah",
-                image: "https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11?w=400",
-                location: { lat: -7.2575, lng: 110.1342 }
-            },
-            {
-                id: 12,
-                name: "Tarsius",
-                scientificName: "Tarsius tarsier",
-                category: "fauna",
-                description: "Primata terkecil di dunia dengan mata besar yang unik. Nokturnal dan endemik Sulawesi.",
-                conservationStatus: "vulnerable",
-                habitat: "Hutan primer dan sekunder",
-                province: "Sulawesi Utara",
-                image: "https://images.unsplash.com/photo-1497206365907-f5e630693df0?w=400",
-                location: { lat: 1.4748, lng: 124.8421 }
+        // Data spesies flora dan fauna Indonesia dari database
+        let speciesData = [];
+
+        // Fetch data dari API
+        async function fetchSpeciesData() {
+            try {
+                const response = await fetch('manpro_filter/api_species.php');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+
+                // Transform data untuk kompatibilitas dengan kode yang ada
+                speciesData = data.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    scientificName: item.scientificName,
+                    category: item.category,
+                    description: item.description,
+                    conservationStatus: item.conservationStatus.toLowerCase().replace(/\s+/g, '-'),
+                    originalStatus: item.originalStatus || '',
+                    habitat: item.habitat,
+                    province: item.province,
+                    image: item.image,
+                    wikiLink: item.wikiLink,
+                    location: {
+                        lat: parseFloat(item.latitude),
+                        lng: parseFloat(item.longitude)
+                    }
+                }));
+
+                // Debug: tampilkan daftar status yang diterima dari API
+                const uniqueStatuses = [...new Set(data.map(i => i.conservationStatus))];
+                const uniqueOriginals = [...new Set(data.map(i => i.originalStatus))];
+                console.info('API conservationStatus (normalized):', uniqueStatuses);
+                console.info('API originalStatus (raw DB):', uniqueOriginals);
+
+                // Inisialisasi peta setelah data dimuat
+                initMap();
+
+                // Render species list section (if present) so "Daftar Spesies" anchor has content
+                if (typeof renderSpeciesList === 'function') {
+                    renderSpeciesList(speciesData);
+                }
+
+            } catch (error) {
+                console.error('Error fetching species data:', error);
+                // Fallback ke data dummy jika API gagal
+                speciesData = [
+                    {
+                        id: 1,
+                        name: "Orangutan Sumatera",
+                        scientificName: "Pongo abelii",
+                        category: "fauna",
+                        description: "Orangutan Sumatera adalah kera besar endemik Sumatera.",
+                        conservationStatus: "endangered",
+                        habitat: "Hutan hujan tropis",
+                        province: "Sumatera Utara",
+                        image: "https://images.unsplash.com/photo-1540573133985-87b6da6d54a9?w=400",
+                        location: { lat: 3.5952, lng: 98.6722 }
+                    }
+                ];
+                initMap();
             }
-        ];
+        }
+
+        // Render daftar spesies ke section #species-list (dipakai oleh halaman utama)
+        function renderSpeciesList(data) {
+            const container = document.getElementById('species-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const grid = document.createElement('div');
+            grid.className = 'species-list-grid';
+
+            data.forEach(species => {
+                const card = document.createElement('div');
+                card.className = 'species-card';
+
+                const img = document.createElement('img');
+                img.className = 'species-image';
+                img.src = species.image || 'https://via.placeholder.com/400x300?text=No+Image';
+                img.alt = species.name;
+
+                const info = document.createElement('div');
+                info.className = 'species-info';
+
+                const title = document.createElement('div');
+                title.className = 'species-name';
+                title.textContent = species.name;
+
+                const sci = document.createElement('div');
+                sci.className = 'species-scientific';
+                sci.textContent = species.scientificName || '';
+
+                const meta = document.createElement('div');
+                meta.style.fontSize = '0.85rem';
+                meta.style.color = '#444';
+                meta.innerHTML = `<strong>Kategori:</strong> ${species.category === 'fauna' ? 'Fauna' : 'Flora'} · <strong>Provinsi:</strong> ${species.province || '-'}`;
+
+                const btns = document.createElement('div');
+                btns.style.marginTop = '8px';
+
+                const viewBtn = document.createElement('button');
+                viewBtn.textContent = 'Tampilkan di Peta';
+                viewBtn.style.background = 'var(--primary-color)';
+                viewBtn.style.color = 'white';
+                viewBtn.style.border = 'none';
+                viewBtn.style.padding = '6px 8px';
+                viewBtn.style.borderRadius = '6px';
+                viewBtn.style.cursor = 'pointer';
+
+                viewBtn.addEventListener('click', () => {
+                    // Switch to map tab, center and open popup for this species
+                    switchTab('map');
+                    setTimeout(() => {
+                        try {
+                            if (species.location && map) {
+                                map.setView([species.location.lat, species.location.lng], 12);
+                            }
+                            const marker = speciesIdToMarker[species.id];
+                            if (marker) {
+                                marker.openPopup();
+                                const el = (typeof marker.getElement === 'function') ? marker.getElement() : marker._icon;
+                                if (el) {
+                                    el.classList.add('marker-highlight');
+                                    setTimeout(() => el.classList.remove('marker-highlight'), 1200);
+                                }
+                            }
+                        } catch (e) { console.warn('Could not focus marker', e); }
+                    }, 300);
+                });
+
+                btns.appendChild(viewBtn);
+
+                info.appendChild(title);
+                info.appendChild(sci);
+                info.appendChild(meta);
+                info.appendChild(btns);
+
+                card.appendChild(img);
+                card.appendChild(info);
+
+                grid.appendChild(card);
+            });
+
+            container.appendChild(grid);
+        }
+
+        // Helper: switch visible tab (map or species list)
+        function switchTab(target) {
+            // target: 'map' or 'species' or selector like '#map-section'
+            const t = (target||'').toString();
+            const mapSection = document.getElementById('map-section');
+            const speciesSection = document.getElementById('species-section');
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const btnTarget = btn.getAttribute('data-target');
+                const isActive = (btnTarget === '#map-section' && (t==='map' || t==='#map-section')) || (btnTarget === '#species-section' && (t==='species' || t==='#species-section'));
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+
+            if (t==='species' || t==='#species-section') {
+                if (speciesSection) speciesSection.style.display = 'block';
+                if (mapSection) mapSection.style.display = 'none';
+                // focus first item for accessibility
+                const first = document.querySelector('#species-list .species-card');
+                if (first) first.focus();
+            } else {
+                if (speciesSection) speciesSection.style.display = 'none';
+                if (mapSection) mapSection.style.display = 'block';
+            }
+        }
 
         // Inisialisasi peta
         let map;
@@ -610,10 +748,14 @@
             
             // Color based on conservation status
             const statusColors = {
-                endangered: '#d32f2f',
-                vulnerable: '#f57c00',
+                'critically-endangered': '#b71c1c',
+                'endangered': '#d32f2f',
+                'vulnerable': '#f57c00',
                 'near-threatened': '#fbc02d',
-                'least-concern': '#388e3c'
+                'least-concern': '#388e3c',
+                'extinct-wild': '#6d4c41',
+                'data-deficient': '#607d8b',
+                'not-evaluated': '#9e9e9e'
             };
             
             const bgColor = statusColors[status] || '#757575';
@@ -644,10 +786,14 @@
 
         function getStatusText(status) {
             const statusMap = {
+                'critically-endangered': 'Kritis (Sangat Terancam Punah)',
                 'endangered': 'Terancam Punah',
                 'vulnerable': 'Rentan',
+                'near-threatened': 'Hampir Terancam',
                 'least-concern': 'Berisiko Rendah',
-                'near-threatened': 'Hampir Terancam'
+                'extinct-wild': 'Punah di Liar',
+                'data-deficient': 'Informasi Kurang',
+                'not-evaluated': 'Belum Dievaluasi'
             };
             return statusMap[status] || 'Tidak Diketahui';
         }
@@ -665,12 +811,12 @@
                     <div class="popup-info"><strong>Kategori:</strong> ${species.category === 'fauna' ? 'Fauna' : 'Flora'}</div>
                     <div class="popup-info"><strong>Provinsi:</strong> ${species.province}</div>
                     <div class="popup-info"><strong>Koordinat:</strong> ${species.location && species.location.lat ? species.location.lat.toFixed(6) : '-'}, ${species.location && species.location.lng ? species.location.lng.toFixed(6) : '-'}</div>
-                    <div class="popup-info"><strong>Altitude:</strong> ${species.altitude ? species.altitude + ' m' : 'Tidak tersedia'}</div>
                     <div class="popup-info"><strong>Habitat:</strong> ${species.habitat}</div>
                     <span class="popup-status ${getStatusClass(species.conservationStatus)}">
                         ${getStatusText(species.conservationStatus)}
                     </span>
                     <p style="margin-top: 10px; font-size: 0.9rem;">${species.description}</p>
+                    ${species.wikiLink ? `<a href="${species.wikiLink}" target="_blank" style="display: block; margin-top: 10px; color: #2e7d32; text-decoration: none; font-weight: bold;">📖 Baca Selengkapnya di Wikipedia</a>` : ''}
                 </div>
             `;
         }
@@ -787,7 +933,24 @@
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
-            initMap();
+            // Fetch data dari API terlebih dahulu
+            fetchSpeciesData();
+
+            // Tab buttons (map / list)
+            document.querySelectorAll('.tab-btn').forEach(btn=>{
+                btn.addEventListener('click', ()=>{
+                    const target = btn.getAttribute('data-target');
+                    if (target === '#species-section') switchTab('species');
+                    else switchTab('map');
+                    // sync nav active state
+                    document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
+                    const navLink = document.querySelector(`nav a[href="${target}"]`);
+                    if (navLink) navLink.classList.add('active');
+                });
+            });
+
+            // Ensure initial tab view is map
+            switchTab('map');
             
             document.getElementById('categoryFilter').addEventListener('change', filterSpecies);
             document.getElementById('statusFilter').addEventListener('change', filterSpecies);
@@ -804,20 +967,33 @@
                 }
             });
             
-            // Smooth scroll untuk navigasi
+            // Smooth scroll untuk navigasi / tab switch
             document.querySelectorAll('nav a').forEach(anchor => {
                 anchor.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href') || '';
+                    // Only intercept internal anchors (hash links)
+                    if (!href.startsWith('#')) return; 
                     e.preventDefault();
-                    
+
                     // Hapus kelas active dari semua link
                     document.querySelectorAll('nav a').forEach(link => {
                         link.classList.remove('active');
                     });
-                    
+
                     // Tambahkan kelas active ke link yang diklik
                     this.classList.add('active');
-                    
-                    const targetId = this.getAttribute('href');
+
+                    // If the nav targets our sections, switch tabs instead of scrolling
+                    if (href === '#species-section') {
+                        switchTab('species');
+                        return;
+                    }
+                    if (href === '#map-section') {
+                        switchTab('map');
+                        return;
+                    }
+
+                    const targetId = href;
                     const targetElement = document.querySelector(targetId);
                     if (targetElement) {
                         targetElement.scrollIntoView({

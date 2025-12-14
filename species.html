@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Daftar Spesies — Flora & Fauna Indonesia</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f7f9f7; color:#222; }
+        header{background:linear-gradient(90deg,#2e7d32,#4caf50);color:#fff;padding:12px 18px}
+        header a{color:#fff;text-decoration:none;margin-right:12px}
+        .container{max-width:1100px;margin:18px auto;padding:12px}
+        .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+        .controls input,.controls select{padding:8px;border-radius:6px;border:1px solid #ddd}
+        .species-list-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+        .species-card{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+        .species-image{width:100%;height:140px;object-fit:cover;background:#eee}
+        .species-info{padding:10px}
+        .species-name{font-weight:700;margin-bottom:4px}
+        .pagination{display:flex;gap:6px;justify-content:center;margin-top:16px}
+        .page-btn{padding:6px 10px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="Ecoflora.html">◀ Kembali ke Peta</a>
+            <strong>Daftar Spesies</strong>
+        </div>
+    </header>
+    <main class="container">
+        <div class="controls">
+            <input id="searchInputList" placeholder="Cari nama spesies atau provinsi...">
+            <select id="categoryFilterList">
+                <option value="all">Semua Kategori</option>
+                <option value="fauna">Fauna</option>
+                <option value="flora">Flora</option>
+            </select>
+            <select id="statusFilterList">
+                <option value="all">Semua Status</option>
+                <option value="critically-endangered">Kritis (CR)</option>
+                <option value="endangered">Terancam (EN)</option>
+                <option value="vulnerable">Rentan (VU)</option>
+                <option value="near-threatened">Hampir Terancam (NT)</option>
+                <option value="least-concern">Berisiko Rendah (LC)</option>
+                <option value="extinct-wild">Punah di Liar (EW)</option>
+                <option value="data-deficient">Informasi Kurang (DD)</option>
+                <option value="not-evaluated">Belum Dievaluasi (NE)</option>
+            </select>
+        </div>
+        <div id="listContainer">
+            <div id="speciesGrid" class="species-list-grid"></div>
+            <div id="pagination" class="pagination"></div>
+        </div>
+    </main>
+
+    <script>
+        let speciesDataList = [];
+        let currentPage = 1;
+        const pageSize = 20;
+
+        async function fetchList() {
+            try {
+                const res = await fetch('manpro_filter/api_species.php');
+                const data = await res.json();
+                speciesDataList = data.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    scientificName: item.scientificName,
+                    category: item.category,
+                    conservationStatus: (item.conservationStatus||'').toLowerCase().replace(/\s+/g,'-'),
+                    originalStatus: item.originalStatus || '',
+                    province: item.province,
+                    image: item.image || 'https://via.placeholder.com/400x300?text=No+Image',
+                    description: item.description || ''
+                }));
+                renderPage();
+            } catch (e) {
+                console.error('Failed to fetch species', e);
+            }
+        }
+
+        function renderPage() {
+            const grid = document.getElementById('speciesGrid');
+            grid.innerHTML = '';
+
+            const filtered = applyFilters(speciesDataList);
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = (currentPage - 1) * pageSize;
+            const pageItems = filtered.slice(start, start + pageSize);
+
+            pageItems.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'species-card';
+                card.innerHTML = `
+                    <img src="${s.image}" class="species-image">
+                    <div class="species-info">
+                        <div class="species-name">${s.name}</div>
+                        <div class="species-scientific">${s.scientificName||''}</div>
+                        <div style="font-size:0.9rem;color:#444;margin-top:6px">${s.province||'-'} · ${s.conservationStatus||''}</div>
+                        <p style="margin-top:8px;font-size:0.9rem;color:#555">${(s.description||'').slice(0,140)}${(s.description||'').length>140?'…':''}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            renderPagination(totalPages);
+        }
+
+        function renderPagination(totalPages) {
+            const p = document.getElementById('pagination');
+            p.innerHTML = '';
+            for (let i=1;i<=totalPages;i++){
+                const btn = document.createElement('button');
+                btn.className = 'page-btn';
+                btn.textContent = i;
+                if (i===currentPage) btn.style.background='#e8f5e9';
+                btn.addEventListener('click', ()=>{ currentPage=i; renderPage(); });
+                p.appendChild(btn);
+            }
+        }
+
+        function applyFilters(arr){
+            const q = (document.getElementById('searchInputList').value||'').trim().toLowerCase();
+            const cat = document.getElementById('categoryFilterList').value;
+            const st = document.getElementById('statusFilterList').value;
+            return arr.filter(s => {
+                if (cat!=='all' && s.category!==cat) return false;
+                if (st!=='all' && s.conservationStatus!==st) return false;
+                if (q && !(s.name.toLowerCase().includes(q) || (s.province||'').toLowerCase().includes(q))) return false;
+                return true;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', ()=>{
+            fetchList();
+            ['searchInputList','categoryFilterList','statusFilterList'].forEach(id=>{
+                const el = document.getElementById(id);
+                if(el) el.addEventListener('change', ()=>{ currentPage=1; renderPage(); });
+            });
+            const sInput = document.getElementById('searchInputList');
+            if (sInput) sInput.addEventListener('keydown',(e)=>{ if (e.key==='Enter'){ currentPage=1; renderPage(); } });
+        });
+    </script>
+</body>
+</html>
